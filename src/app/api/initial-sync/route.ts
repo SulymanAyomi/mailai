@@ -32,8 +32,6 @@ export const POST = async (req: NextRequest) => {
     // if (!response) return NextResponse.json({ error: "FAILED_TO_SYNC" }, { status: 500 });
     // if (response == "No messages") return NextResponse.json({ error: "NO MESSAGES" }, { status: 200 });
     // const {  emails } = response
-    const { emails } = data
-    console.log("hiii")
 
     await syncEmailsToDatabase(emails, dbUserAccount.id)
 

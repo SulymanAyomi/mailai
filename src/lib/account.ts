@@ -4,9 +4,11 @@ import { resolve } from "path"
 
 export class Account {
     private token: string
+    private grant: string
 
-    constructor(token: string) {
+    constructor(token: string, grant: string) {
         this.token = token
+        this.grant = grant
     }
 
     private async startSync() {
