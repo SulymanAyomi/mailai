@@ -1,6 +1,7 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { type DefaultSession, type NextAuthConfig } from "next-auth";
 import DiscordProvider from "next-auth/providers/discord";
+import GoogleProvider from "next-auth/providers/google";
 
 import { db } from "@/server/db";
 
@@ -12,6 +13,7 @@ import { db } from "@/server/db";
  */
 declare module "next-auth" {
   interface Session extends DefaultSession {
+    accessToken: string;
     user: {
       id: string;
       // ...other properties
@@ -33,6 +35,16 @@ declare module "next-auth" {
 export const authConfig = {
   providers: [
     DiscordProvider,
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          scope: "https://www.googleapis.com/auth/gmail.readonly openid email profile",
+        },
+      },
+
+    })
     /**
      * ...add more providers here.
      *
@@ -45,12 +57,20 @@ export const authConfig = {
   ],
   adapter: PrismaAdapter(db),
   callbacks: {
-    session: ({ session, user }) => ({
+    async jwt({ token, account }) {
+      if (account) {
+        token.accessToken = account.access_token;
+      }
+      return token;
+    },
+    session: async ({ session, user, token }) => ({
       ...session,
+      // accessToken: token.accessToken,
       user: {
         ...session.user,
         id: user.id,
       },
     }),
+
   },
 } satisfies NextAuthConfig;
