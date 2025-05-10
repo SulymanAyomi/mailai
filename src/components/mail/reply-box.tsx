@@ -5,99 +5,146 @@ import useThreads from "./use-threads";
 import { api, type RouterOutputs } from "@/trpc/react";
 import { toast } from "sonner";
 import { thread } from "../data";
+import { ComposeEmailMenu } from "./compose-email-menu";
+import useDraft from "./use-draft";
 
-const ReplyBox = () => {
-  const { accountId, threadId } = useThreads();
-  const { data: replyDetails } = api.account.getReplyDetails.useQuery({
-    accountId: accountId,
-    threadId: threadId || "",
-    replyType: "reply",
-  });
-  const t = thread.find((t) => t.id == threadId);
-
-  console.log(replyDetails);
-  if (!replyDetails) return <></>;
-  return <Component replyDetails={replyDetails} />;
-};
-
-const Component = ({
-  replyDetails,
+const ReplyBox = ({
+  type,
+  draftId,
 }: {
-  replyDetails: NonNullable<RouterOutputs["account"]["getReplyDetails"]>;
+  type: "reply" | "replyAll" | "forward";
+  draftId: string | undefined;
 }) => {
   const { accountId, threadId } = useThreads();
 
-  const [subject, setSubject] = React.useState(
-    replyDetails.subject.startsWith("Re:")
-      ? replyDetails.subject
-      : `Re: ${replyDetails.subject}`,
+  const { data, isLoading } = api.account.getDraft.useQuery(
+    {
+      threadId: threadId!,
+      id: draftId,
+      accountId: accountId,
+    },
+    {
+      enabled: !!draftId || !!threadId,
+    },
   );
+
+  if (!threadId || !data) return <></>;
+  if (isLoading) return <></>;
+
+  return (
+    <>
+      <ComposeEmailMenu id={data.id} />
+      <Component data={data} type={type} />
+    </>
+  );
+};
+
+const Component = ({
+  data,
+  type,
+}: {
+  data: NonNullable<RouterOutputs["account"]["getDraft"]> | undefined;
+  type: "reply" | "replyAll" | "forward";
+}) => {
+  const { accountId, threadId } = useThreads();
+
+  const draft = React.useMemo(() => data, [data]);
+  const [subject, setSubject] = React.useState(
+    draft?.subject?.startsWith("Re:") ? draft.subject : `Re: ${draft?.subject}`,
+  );
+  const [body, setBody] = React.useState(draft?.body || "");
 
   const [toValues, setToValues] = React.useState<
-    { label: string; value: string }[]
-  >(
-    replyDetails.to.map((to) => ({
-      label: to.address ?? to.name,
-      value: to.address,
-    })) || [],
-  );
+    {
+      label: string;
+      value: {
+        name: string;
+        email: string;
+      };
+    }[]
+  >([]);
   const [ccValues, setCcValues] = React.useState<
-    { label: string; value: string }[]
-  >(
-    replyDetails.cc.map((cc) => ({
-      label: cc.address ?? cc.name,
-      value: cc.address,
-    })) || [],
-  );
+    {
+      label: string;
+      value: {
+        name: string;
+        email: string;
+      };
+    }[]
+  >([]);
+
+  function setDraftFunc() {
+    if (draft) {
+      setSubject(draft.subject ?? "");
+      setBody(draft.body ?? "");
+      if (Array.isArray(draft.to) && draft.to) {
+        // @ts-ignore
+        const to = draft.to?.map(
+          // @ts-ignore
+          (email: { name: string; email: string }) => ({
+            label: email.name ?? email.name,
+            value: { name: email.name, email: email.email },
+          }),
+        );
+        // @ts-ignore
+        setToValues(to);
+      }
+      if (Array.isArray(draft.cc) && draft.cc) {
+        // @ts-ignore
+        const cc = draft.cc?.map(
+          // @ts-ignore
+          (email: { name: string; email: string }) => ({
+            label: email.name,
+            value: { name: email.name, email: email.email },
+          }),
+        );
+        setCcValues(cc);
+      }
+    }
+  }
 
   const sendEmail = api.account.sendEmail.useMutation();
+
   React.useEffect(() => {
-    if (!replyDetails || !threadId) return;
-
-    if (!replyDetails.subject.startsWith("Re:")) {
-      setSubject(`Re: ${replyDetails.subject}`);
+    if (draft) {
+      setDraftFunc();
     }
-    setToValues(
-      replyDetails.to.map((to) => ({
-        label: to.address ?? to.name,
-        value: to.address,
-      })),
-    );
-    setCcValues(
-      replyDetails.cc.map((cc) => ({
-        label: cc.address ?? cc.name,
-        value: cc.address,
-      })),
-    );
-  }, [replyDetails, threadId]);
+    return () => {
+      setSubject("");
+      setBody("");
+      setCcValues([]);
+      setToValues([]);
+    };
+  }, [threadId, draft]);
 
-  const handleSend = async (value: string) => {
-    if (!replyDetails) return;
-    sendEmail.mutate(
-      {
-        accountId,
-        threadId: threadId ?? undefined,
-        body: value,
-        subject,
-        from: replyDetails.from,
-        to: replyDetails.to.map((to) => ({
-          name: to.name ?? to.address,
-          address: to.address,
-        })),
-        cc: replyDetails.cc.map((cc) => ({
-          name: cc.name ?? cc.address,
-          address: cc.address,
-        })),
-        replyTo: replyDetails.from,
-        inReplyTo: replyDetails.id,
-      },
-      {
-        onSuccess: () => {
-          toast.success("Email sent");
-          // editor?.commands.clearContent()
-        },
-      },
-    );
+  const handleSend = async (draft: object) => {
+    // sendEmail.mutate(
+    //   {
+    //     accountId,
+    //     threadId: threadId ?? undefined,
+    //     body: value,
+    //     subject,
+    //     from: replyDetails.from,
+    //     to: replyDetails.to.map((to) => ({
+    //       name: to.name ?? to.email,
+    //       email: to.email,
+    //       id: to.id,
+    //     })),
+    //     cc: replyDetails.cc.map((cc) => ({
+    //       name: cc.name ?? cc.email,
+    //       email: cc.email,
+    //       id: cc.id,
+    //     })),
+    //     replyTo: replyDetails.from,
+    //     inReplyTo: replyDetails.from,
+    //   },
+    //   {
+    //     onSuccess: () => {
+    //       toast.success("Email sent");
+    //       // editor?.commands.clearContent()
+    //     },
+    //   },
+    // );
   };
 
   return (
@@ -112,9 +159,11 @@ const Component = ({
       }}
       subject={subject}
       setSubject={setSubject}
-      to={toValues.map((to) => to.value)}
       handleSend={handleSend}
       isSending={sendEmail.isPending}
+      threadId={draft?.threadId ?? null}
+      body={body}
+      draftId={draft?.id ?? null}
     />
   );
 };

@@ -14,7 +14,7 @@ export const GET = async (req: NextRequest) => {
     console.log("params")
     console.log(params)
     const code = params.get('code');
-    // if (!code) return NextResponse.json({ error: "Account connection failed" }, { status: 400 });
+    if (!code) return NextResponse.json({ error: "Account connection failed" }, { status: 400 });
 
     const accountDetails = await getNylasToken(code as string)
     if (!accountDetails) return NextResponse.json({ error: "Failed to fetch token" }, { status: 400 });
@@ -23,12 +23,12 @@ export const GET = async (req: NextRequest) => {
             emailAddress: accountDetails.email as string,
         },
         create: {
-            id: userId,
             userId,
             access_token: accountDetails.access_Token as string,
             provider: accountDetails.provider as string,
             emailAddress: accountDetails.email as string,
-            grant: accountDetails.grant as string
+            grant: accountDetails.grant as string,
+            name: accountDetails.name as string
         },
         update: {
             access_token: accountDetails.access_Token as string,
@@ -42,5 +42,5 @@ export const GET = async (req: NextRequest) => {
             console.log(err.response.data)
         })
     )
-    return NextResponse.redirect(new URL('/', req.url))
+    return NextResponse.redirect(new URL('/mail', req.url))
 }

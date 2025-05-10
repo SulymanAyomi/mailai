@@ -1,5 +1,5 @@
 "use client";
-// import TurndownService from 'turndown'
+import TurndownService from "turndown";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,51 +12,59 @@ import {
 
 import React from "react";
 import { generateEmail } from "./action";
-// import { readStreamableValue } from "ai/rsc"
+import { readStreamableValue } from "ai/rsc";
 import { Bot } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import useThreads from "../use-threads";
-// import { turndown } from '@/lib/turndown'
+import { turndown } from "@/lib/turndown";
+import { atom, useAtom } from "jotai";
 
 type Props = {
   onGenerate: (value: string) => void;
   isComposing?: boolean;
 };
 
+export const isAIComposeOpenAtom = atom(false);
+
 const AIComposeButton = (props: Props) => {
   const [prompt, setPrompt] = React.useState("");
   const [open, setOpen] = React.useState(false);
+  const [isAIComposeOpen, setIsAIComposeOpenAtom] =
+    useAtom(isAIComposeOpenAtom);
   const { account, threads, threadId } = useThreads();
   const thread = threads?.find((t) => t.id === threadId);
   const aiGenerate = async (prompt: string) => {
     let context: string | undefined = "";
-    // if (!props.isComposing) {
-    //   context = thread?.emails
-    //     .map(
-    //       (m) =>
-    //         `Subject: ${m.subject}\nFrom: ${m.from.address}\n\n${turndown.turndown(m.body ?? m.bodySnippet ?? "")}`,
-    //     )
-    //     .join("\n");
-    // }
+    if (!props.isComposing) {
+      context = thread?.emails
+        .map(
+          (m) =>
+            `Subject: ${m.subject}\nFrom: ${m.from.email}\n\n${turndown.turndown(m.body ?? m.bodySnippet ?? "")}`,
+        )
+        .join("\n");
+    }
 
-    // const { output } = await generateEmail(
-    //   context + `\n\nMy name is: ${account?.name}`,
-    //   prompt,
-    // );
+    const { output } = await generateEmail(
+      context + `\n\nMy name is: ${account?.name}`,
+      prompt,
+    );
 
-    // for await (const delta of readStreamableValue(output)) {
-    //     if (delta) {
-    //         props.onGenerate(delta);
-    //     }
-    // }
+    for await (const delta of readStreamableValue(output)) {
+      console.log(delta);
+      if (delta) {
+        props.onGenerate(delta);
+        console.log("yes i have");
+      }
+      console.log("nooooo i have");
+    }
   };
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={isAIComposeOpen} onOpenChange={setIsAIComposeOpenAtom}>
       <DialogTrigger>
         <Button
           asChild
-          onClick={() => setOpen(true)}
+          onClick={() => setIsAIComposeOpenAtom(true)}
           size="icon"
           variant={"outline"}
         >

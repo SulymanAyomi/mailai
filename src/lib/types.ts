@@ -13,7 +13,17 @@ export interface SyncUpdatedResponse {
 
 export const emailAddressSchema = z.object({
     name: z.string(),
-    address: z.string(),
+    email: z.string(),
+})
+export const emailAddressSchema1 = z.object({
+    name: z.string(),
+    email: z.string(),
+    id: z.string(),
+})
+
+export const draftEmailAddressSchema = z.object({
+    name: z.string(),
+    email: z.string()
 })
 
 export interface EmailGmailMessage {
@@ -30,6 +40,21 @@ export interface EmailGmailMessage {
     bcc: string,
     body: string,
     replyTo: string
+}
+
+export interface CreateDraft {
+
+    body: string
+    subject: string
+    syncUpdate: string // "pending" | "synced" | "failed"
+    starred: boolean | undefined
+    from: { name: string, email: string }[]
+    to: { name: string, email: string }[] | []
+    cc: { name: string, email: string }[] | []
+    bcc: { name: string, email: string }[] | []
+    replyTo: { name: string, email: string }[] | []
+    threadId: String | undefined
+    reply_to_message_id: string | undefined
 }
 
 export interface EmailMessage {
@@ -65,9 +90,8 @@ export interface EmailMessage {
 }
 
 export interface EmailAddress {
-    name?: string;
-    address: string;
-    raw?: string;
+    name: string;
+    email: string;
 }
 
 export interface EmailAttachment {
@@ -85,3 +109,6 @@ export interface EmailHeader {
     name: string;
     value: string;
 }
+
+
+

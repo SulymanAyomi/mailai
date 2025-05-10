@@ -76,16 +76,18 @@ model UserAccount {
 
     binaryIndex Json?
 
-    access_token String @unique
+    access_token String  @unique
     provider     String
-    emailAddress String @unique
+    emailAddress String  @unique
     grant        String
+    name         String?
 
-    nextDeltaToken String?
-
+    oramaIndex     Json?
     user           User           @relation(fields: [userId], references: [id])
     threads        Thread[]
     emailAddresses EmailAddress[]
+
+    Email Email[]
 }
 
 model StripeSubscription {
@@ -129,6 +131,10 @@ model Thread {
     participantIds  String[]
     userAccountId   String
     userAccount     UserAccount @relation(fields: [userAccountId], references: [id])
+    hasAttachments  Boolean     @default(false)
+    hasDrafts       Boolean     @default(false)
+    snippet         String?
+    folders         String[]
 
     done Boolean @default(false)
 
@@ -136,7 +142,9 @@ model Thread {
     draftStatus Boolean @default(false)
     sentStatus  Boolean @default(false)
 
-    emails Email[]
+    emails_ids String[]
+    draft_ids  String[]
+    emails     Email[]
 
     @@index([userAccountId])
     @@index([done])
@@ -152,12 +160,12 @@ model Email {
     thread            Thread            @relation(fields: [threadId], references: [id])
     createdTime       DateTime
     lastModifiedTime  DateTime?
-    sentAt            DateTime?
     receivedAt        DateTime?
     internetMessageId String?
     subject           String
-    sysLabels         String[]
+    folders           String[]
     sensitivity       Sensitivity       @default(normal)
+    unRead            Boolean
     // meetingMessageMethod MeetingMessageMethod? 
     from              EmailAddress      @relation("FromEmail", fields: [fromId], references: [id])
     fromId            String
@@ -172,16 +180,17 @@ model Email {
     inReplyTo         String?
     references        String?
     threadIndex       String?
-    // internetHeaders      Json[]
     nativeProperties  Json?
     folderId          String?
-    // omitted              String[]
+    embedding         String            @default("pending") // 'pending' | 'complete' | 'failed'
+    userAccountId     String
+    userAccount       UserAccount       @relation(fields: [userAccountId], references: [id])
 
     emailLabel EmailLabel @default(inbox)
 
     @@index([threadId])
     @@index([emailLabel])
-    @@index([sentAt])
+    @@index([createdTime])
 }
 
 enum EmailLabel {
@@ -190,10 +199,34 @@ enum EmailLabel {
     draft
 }
 
+model Draft {
+    id              String       @id @default(cuid())
+    accountId       String
+    nylasDraftId    String?      @unique
+    body            String?
+    subject         String?
+    sources         String // "external" | "internal"
+    syncUpdate      String // "pending" | "synced" | "failed"
+    starred         Boolean
+    from            EmailAddress @relation("DraftEmail", fields: [fromId], references: [id])
+    fromId          String
+    to              Json
+    cc              Json
+    bcc             Json
+    replyTo         Json
+    inReplyTo       String?
+    threadId        String?
+    updatedAtRemote DateTime? // Timestamp from Nylas
+    createdAt       DateTime     @default(now())
+    updatedAt       DateTime     @updatedAt
+
+    @@unique([id, threadId])
+}
+
 model EmailAddress {
     id            String  @id @default(cuid())
     name          String?
-    address       String
+    email         String
     raw           String?
     sentEmails    Email[] @relation("FromEmail")
     receivedTo    Email[] @relation("ToEmails")
@@ -201,23 +234,41 @@ model EmailAddress {
     receivedBcc   Email[] @relation("BccEmails")
     replyToEmails Email[] @relation("ReplyToEmails")
 
+    draftEmail Draft[] @relation("DraftEmail")
+
     UserAccount   UserAccount? @relation(fields: [userAccountId], references: [id])
     userAccountId String?
 
-    @@unique([userAccountId, address])
+    @@unique([userAccountId, email])
 }
 
 model EmailAttachment {
-    id              String  @id @default(cuid())
-    name            String
-    mimeType        String
-    size            Int
-    inline          Boolean
-    contentId       String?
-    content         String?
-    contentLocation String?
-    Email           Email   @relation(fields: [emailId], references: [id])
-    emailId         String
+    id                 String  @id @default(cuid())
+    contentType        String
+    name               String
+    contentId          String
+    contentDisposition String?
+    isInLine           Boolean
+    size               Int
+
+    Email   Email  @relation(fields: [emailId], references: [id])
+    emailId String
+}
+
+model DraftAttachment {
+    id     String  @id @default(cuid())
+    name   String
+    size   Int
+    type   String
+    url    String?
+    base64 String?
+    status Status
+}
+
+enum Status {
+    uploading
+    uploaded
+    error
 }
 
 enum Sensitivity {
@@ -233,4 +284,21 @@ enum MeetingMessageMethod {
     cancel
     counter
     other
+}
+
+model SyncLog {
+    id        String   @id @default(cuid())
+    type      String // e.g., 'draft', 'inbox', 'sent'
+    status    String // e.g., 'started', 'success', 'error'
+    message   String?
+    meta      Json? // optional metadata like count or ids
+    createdAt DateTime @default(now())
+}
+
+model SyncCheckpoint {
+    id         String   @id @default(cuid())
+    userId     String
+    resource   String // 'inbox', 'sent', 'draft'
+    lastSynced DateTime
+    updatedAt  DateTime @updatedAt
 }

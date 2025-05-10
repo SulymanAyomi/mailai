@@ -7,6 +7,7 @@ import { useLocalStorage } from "usehooks-ts";
 import useThreads from "./use-threads";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
+import { useBreakpoint } from "@/lib/useBreakPoint";
 
 type Props = {
   email: RouterOutputs["account"]["getThreads"][number]["emails"][number];
@@ -15,6 +16,7 @@ type Props = {
 const EmailDisplay = ({ email }: Props) => {
   const { account } = useThreads();
   const letterRef = React.useRef<HTMLDivElement>(null);
+  const { isMobile } = useBreakpoint();
 
   React.useEffect(() => {
     if (letterRef.current) {
@@ -27,7 +29,7 @@ const EmailDisplay = ({ email }: Props) => {
     }
   }, [email]);
 
-  const isMe = account?.emailAddress === email.from.address;
+  const isMe = account?.emailAddress === email.from.email;
 
   return (
     <div
@@ -43,25 +45,33 @@ const EmailDisplay = ({ email }: Props) => {
         <div className="flex items-center gap-2">
           {!isMe && (
             <Avatar
-              name={email.from.name ?? email.from.address}
-              email={email.from.address}
+              name={email.from.name ?? email.from.email}
+              email={email.from.email}
               size="35"
               textSizeRatio={2}
               round={true}
             />
           )}
-          <span className="font-medium">
-            {isMe ? "Me" : email.from.address}
+          <span className={cn("font-medium", isMobile && "text-[10px]")}>
+            {isMe ? "Me" : email.from.email}
           </span>
         </div>
-        <p className="text-xs text-muted-foreground">
-          {formatDistanceToNow(email.sentAt ?? new Date(), {
+        <p
+          className={cn(
+            "text-xs text-muted-foreground",
+            isMobile && "text-[10px]",
+          )}
+        >
+          {formatDistanceToNow(email.createdTime ?? new Date(), {
             addSuffix: true,
           })}
         </p>
       </div>
       <Letter
-        className="rounded-md bg-white text-black"
+        className={cn(
+          "rounded-mds mt-2 text-foreground",
+          isMobile && "text-[10px]",
+        )}
         html={email?.body ?? ""}
       />
     </div>

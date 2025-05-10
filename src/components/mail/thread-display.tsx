@@ -8,6 +8,7 @@ import {
   Reply,
   ReplyAll,
   Trash2,
+  ArrowLeft,
 } from "lucide-react";
 
 import {
@@ -27,6 +28,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -47,19 +50,131 @@ import { useLocalStorage } from "usehooks-ts";
 import { thread as threadd } from "@/components/data";
 import EmailDisplay from "./email-display";
 import ReplyBox from "./reply-box";
+import React, { useEffect, useState } from "react";
+import openNewMail from "./open-new-mail";
+import useDraft from "./use-draft";
+import SearchDisplay from "./search-display";
+import { isSearchingAtom } from "./search-bar";
+import { BackwardIcon } from "@heroicons/react/24/solid";
+import { useBreakpoint } from "@/lib/useBreakPoint";
+import { cn } from "@/lib/utils";
 
 export function ThreadDisplay() {
   const { isFetching, threadId, setThreadId, threads } = useThreads();
+  const [userCurrentEmail, setUserCurrentEmail] = useLocalStorage(
+    "userCurrentEmail",
+    {
+      emailAddress: "",
+      name: "",
+      id: "",
+    },
+  );
   const today = new Date();
   const thread = threads?.find((t) => t.id === threadId);
   // const [isSearching, setIsSearching] = useAtom(isSearchingAtom);
 
   const [accountId] = useLocalStorage("accountId", "");
+  const [open, setOpen] = useState(false);
+  const [reply, setReply] = useState<"reply" | "replyAll" | "forward">("reply");
+  const [forward, setForward] = useState(false);
+  const [newDraft, setNewDraft] = useState(false);
+  const [draftId, setDraftId] = useState<string | undefined>(undefined);
+
+  const { openMail } = openNewMail();
+  const saveDraft = api.account.saveDraft.useMutation({
+    onSuccess: (data) => {
+      console.log(data);
+      if (data) {
+        setDraftId(data?.id!);
+      }
+    },
+  });
+
+  useEffect(() => {
+    setOpen(thread?.hasDrafts ?? false);
+    return () => setDraftId(undefined);
+  }, [thread]);
+
+  const openReply = (type: "reply" | "replyAll" | "forward") => {
+    setOpen(true);
+    setReply(type);
+    if (thread) {
+      const {
+        accountId: accountid,
+        threadId: threadid,
+        subject,
+        body,
+        from,
+        to,
+        cc,
+        bcc,
+      } = useDraft({
+        threadId: threadId as string,
+        accountId,
+        replyType: reply,
+        thread,
+      });
+
+      saveDraft.mutate({
+        accountId: accountid,
+        threadId: threadid,
+        subject,
+        body,
+        fromId: userCurrentEmail.id,
+        to,
+        cc,
+        bcc,
+        new: false,
+      });
+    }
+  };
 
   return (
     <div className="flex h-full flex-col">
+      {!open ? (
+        <Component thread={thread} openReply={openReply} />
+      ) : (
+        <ReplyBox type={reply} draftId={draftId} />
+      )}
+    </div>
+  );
+}
+
+const Component = ({
+  thread,
+  openReply,
+}: {
+  thread: NonNullable<RouterOutputs["account"]["getThreads"][0]> | undefined;
+  openReply: (type: "reply" | "replyAll" | "forward") => void;
+}) => {
+  const today = new Date();
+  const [isSearching, setIsSearching] = useAtom(isSearchingAtom);
+  const [openMobileMail, setOpenMobileMail] = useLocalStorage<boolean>(
+    "openMobileMail",
+    false,
+  );
+
+  const { isMobile } = useBreakpoint();
+
+  return (
+    <React.Fragment>
       <div className="flex items-center p-2">
         <div className="flex items-center gap-2">
+          {isMobile && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setOpenMobileMail(false)}
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span className="sr-only">Back</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Back</TooltipContent>
+            </Tooltip>
+          )}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" disabled={!thread}>
@@ -151,7 +266,12 @@ export function ThreadDisplay() {
         <div className="ml-auto flex items-center gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" disabled={!thread}>
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled={!thread}
+                onClick={() => openReply("reply")}
+              >
                 <Reply className="h-4 w-4" />
                 <span className="sr-only">Reply</span>
               </Button>
@@ -160,7 +280,12 @@ export function ThreadDisplay() {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" disabled={!thread}>
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled={!thread}
+                onClick={() => openReply("replyAll")}
+              >
                 <ReplyAll className="h-4 w-4" />
                 <span className="sr-only">Reply all</span>
               </Button>
@@ -169,7 +294,12 @@ export function ThreadDisplay() {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" disabled={!thread}>
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled={!thread}
+                onClick={() => openReply("forward")}
+              >
                 <Forward className="h-4 w-4" />
                 <span className="sr-only">Forward</span>
               </Button>
@@ -195,57 +325,79 @@ export function ThreadDisplay() {
       </div>
       <Separator />
 
-      {thread ? (
-        <div className="flex flex-1 flex-col overflow-scroll">
-          <div className="flex items-start p-4">
-            <div className="flex items-start gap-4 text-sm">
-              <Avatar>
-                <AvatarImage alt={"lol"} />
-                <AvatarFallback>
-                  {thread?.emails[0]?.from?.name
-                    ?.split(" ")
-                    .map((chunk) => chunk[0])
-                    .join("")}
-                </AvatarFallback>
-              </Avatar>
-              <div className="grid gap-1">
-                <div className="font-semibold">
-                  {thread.emails[0]?.from?.name}
-                </div>
-                <div className="line-clamp-1 text-xs">
-                  {thread.emails[0]?.subject}
-                </div>
-                <div className="line-clamp-1 text-xs">
-                  <span className="font-medium">Reply-To:</span>{" "}
-                  {thread.emails[0]?.from?.address}
-                </div>
-              </div>
-            </div>
-            {thread.emails[0]?.sentAt && (
-              <div className="ml-auto text-xs text-muted-foreground">
-                {format(new Date(thread.emails[0].sentAt), "PPpp")}
-              </div>
-            )}
-          </div>
-          <Separator />
-          <div className="flex max-h-[calc(100vh-300px)] flex-col overflow-scroll">
-            <div className="flex flex-col gap-4 p-6">
-              {thread.emails.map((email) => {
-                return <EmailDisplay key={email.id} email={email} />;
-              })}
-            </div>
-          </div>
-          <div className="flex-1"></div>
-          <Separator className="mt-auto" />
-          <ReplyBox />
-        </div>
+      {!isMobile && isSearching ? (
+        <SearchDisplay />
       ) : (
         <>
-          <div className="p-8 text-center text-muted-foreground">
-            No message selected {threadId}
-          </div>
+          {thread ? (
+            <div className="flex flex-1 flex-col overflow-auto">
+              <div className="flex items-start p-4">
+                <div className="flex items-start gap-4 text-sm">
+                  <Avatar>
+                    <AvatarImage alt={"lol"} />
+                    <AvatarFallback>
+                      {thread?.emails[0]?.from?.name
+                        ?.split(" ")
+                        .map((chunk) => chunk[0])
+                        .join("")}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="grid gap-1">
+                    <div
+                      className={cn("font-semibold", isMobile && "text-[10px]")}
+                    >
+                      {thread.emails[0]?.from?.name}
+                    </div>
+                    <div
+                      className={cn(
+                        "line-clamp-1 text-xs",
+                        isMobile && "text-[10px]",
+                      )}
+                    >
+                      {thread.emails[0]?.subject}
+                    </div>
+                    <div
+                      className={cn(
+                        "line-clamp-1 text-xs",
+                        isMobile && "text-[10px]",
+                      )}
+                    >
+                      <span className="font-medium">Reply-To:</span>{" "}
+                      {thread.emails[0]?.from?.email}
+                    </div>
+                  </div>
+                </div>
+                {thread.emails[0]?.createdTime && (
+                  <div
+                    className={cn(
+                      "ml-auto text-xs text-muted-foreground",
+                      isMobile && "text-[8px]",
+                    )}
+                  >
+                    {format(new Date(thread.emails[0].createdTime), "PPpp")}
+                  </div>
+                )}
+              </div>
+              <Separator />
+              <div className="flex max-h-[calc(100vh-180px)] max-w-full flex-col overflow-auto">
+                <div className="flex flex-col gap-4 p-6">
+                  <ScrollArea>
+                    {thread.emails.map((email) => {
+                      return <EmailDisplay key={email.id} email={email} />;
+                    })}
+                  </ScrollArea>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="p-8 text-center text-muted-foreground">
+                No message selected
+              </div>
+            </>
+          )}
         </>
       )}
-    </div>
+    </React.Fragment>
   );
-}
+};

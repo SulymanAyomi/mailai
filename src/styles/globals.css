@@ -73,3 +73,30 @@
   background-color: #dadada;
   border-radius: 4px;
 }
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+}
+
+td, th {
+  border: 1px solid #ddd;
+  position: relative;
+}
+
+
+
+td::before, th::after {
+  content: "";
+  position: absolute;
+  right: -2px;
+  top: 0;
+  width: 5px;
+  height: 100%;
+  cursor: col-resize;
+  background: transparent;
+}
+td:hover::after, th:hover::after{
+  background: #ccc;
+}

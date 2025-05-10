@@ -1,29 +1,44 @@
 'use server';
 import TurndownService from 'turndown'
 
-import { streamText } from 'ai';
-import { openai } from '@ai-sdk/openai';
+import { generateText, streamText } from 'ai';
 import { createStreamableValue } from 'ai/rsc';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { GEMINI_AI } from '@/config';
+
+const google = createGoogleGenerativeAI({
+    apiKey: GEMINI_AI
+});
+
 
 export async function generateEmail(context: string, prompt: string) {
-    console.log("context", context)
+    // console.log("context", context)
     const stream = createStreamableValue('');
 
     (async () => {
-        const { textStream } = await streamText({
-            model: openai('gpt-4-turbo'),
+
+
+        console.log("delta", "hiii")
+
+
+
+    })();
+
+    async function streamUpdate() {
+        const { textStream } = streamText({
+            model: google("gemini-1.5-pro"),
             prompt: `
             You are an AI email assistant embedded in an email client app. Your purpose is to help the user compose emails by providing suggestions and relevant information based on the context of their previous emails.
-            
+
             THE TIME NOW IS ${new Date().toLocaleString()}
-            
+
             START CONTEXT BLOCK
             ${context}
             END OF CONTEXT BLOCK
-            
+
             USER PROMPT:
             ${prompt}
-            
+
             When responding, please keep in mind:
             - Be helpful, clever, and articulate. 
             - Rely on the provided email context to inform your response.
@@ -39,12 +54,21 @@ export async function generateEmail(context: string, prompt: string) {
 
         for await (const delta of textStream) {
             stream.update(delta);
+            console.log("fuckkk")
         }
 
         stream.done();
-    })();
 
-    return { output: stream.value };
+
+    }
+
+
+    streamUpdate()
+
+    // const turndownService = new TurndownService();
+
+
+    return { output: stream.value }
 }
 
 export async function generate(input: string) {
@@ -52,8 +76,8 @@ export async function generate(input: string) {
 
     console.log("input", input);
     (async () => {
-        const { textStream } = await streamText({
-            model: openai('gpt-4'),
+        const { textStream } = streamText({
+            model: google("gemini-1.5-pro"),
             prompt: `
             ALWAYS RESPOND IN PLAIN TEXT, no html or markdown.
             You are a helpful AI embedded in a email client app that is used to autocomplete sentences, similar to google gmail autocomplete

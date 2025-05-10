@@ -23,13 +23,16 @@ const SideBar = ({ isCollapsed }: Props) => {
   const [tab] = useLocalStorage("email-tab", "inbox");
   const [accountId] = useLocalStorage("accountId", "");
 
-  const refetchInterval = 5000;
+  const refetchInterval = 50000000;
   const { data: inboxThreads } = api.account.getNumThreads.useQuery(
     {
       accountId,
       tab: "inbox",
     },
-    { enabled: !!accountId && !!tab, refetchInterval },
+    {
+      enabled: !!accountId && !!tab,
+      refetchInterval,
+    },
   );
 
   const { data: draftsThreads } = api.account.getNumThreads.useQuery(

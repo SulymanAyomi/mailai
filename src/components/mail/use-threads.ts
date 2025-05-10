@@ -5,16 +5,18 @@ import React from "react";
 import { useLocalStorage } from "usehooks-ts";
 
 export const threadIdAtom = atom<string | null>(null);
+export const draftIdAtom = atom<string | null>(null);
 const useThreads = () => {
   const { data: accounts } = api.account.getAccounts.useQuery();
   const [accountId] = useLocalStorage("accountId", "");
   const [tab] = useLocalStorage("email-tab", "inbox");
-  const [done] = useLocalStorage("email-done", false);
+  const [unread] = useLocalStorage("unread", false);
   const [threadId, setThreadId] = useAtom(threadIdAtom);
+  const [draftId, setDraftId] = useAtom(draftIdAtom);
 
   const queryKey = getQueryKey(
     api.account.getThreads,
-    { accountId, tab, done },
+    { accountId, tab, unread },
     "query",
   );
   const {
@@ -24,13 +26,29 @@ const useThreads = () => {
   } = api.account.getThreads.useQuery(
     {
       accountId,
-      done,
+      unread,
       tab,
     },
     {
       enabled: !!accountId && !!tab,
       placeholderData: (e) => e,
-      refetchInterval: 1000 * 5,
+      // refetchInterval: 1000 * 5,
+    },
+  );
+
+  const {
+    data: drafts,
+    isFetching: isFetchingDraft,
+    refetch: RefetchDraft,
+  } = api.account.getDrafts.useQuery(
+    {
+      accountId,
+      tab,
+    },
+    {
+      enabled: !!accountId && !!tab,
+      placeholderData: (e) => e,
+      // refetchInterval: 1000 * 5,
     },
   );
 
@@ -44,6 +62,10 @@ const useThreads = () => {
     accountId,
     threadId,
     setThreadId,
+    drafts,
+    isFetchingDraft,
+    setDraftId,
+    draftId,
   };
 };
 

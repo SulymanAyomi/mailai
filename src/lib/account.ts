@@ -22,6 +22,9 @@ export class Account {
             }
         })
         return response.data
+
+        const thread = 
+
     }
 
     async getUpdatedEmails({ deltaToken, pageToken }: { deltaToken?: string, pageToken?: string }) {

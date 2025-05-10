@@ -12,6 +12,9 @@ import {
 import { cn } from "@/lib/utils";
 import { Plus } from "lucide-react";
 import { getAurinkoAuthUrl } from "@/lib/aurinko";
+import React, { useState } from "react";
+import { toast } from "sonner";
+import { getNylasAuthUrl } from "@/lib/nylas";
 
 type Props = {
   isCollapsed: boolean;
@@ -20,10 +23,67 @@ type Props = {
 const AccountSwitcher = ({ isCollapsed }: Props) => {
   const { data: accounts } = api.account.getAccounts.useQuery();
   const [accountId, setAccountId] = useLocalStorage("accountId", "");
+  const [email, setEmail] = useState("");
+  const { data: currentEmailData, isLoading: currentEmailDataLoading } =
+    api.account.getCurrentUserEmail.useQuery(
+      {
+        email,
+        accountId,
+      },
+      {
+        enabled: !!accountId && !!email,
+      },
+    );
+  const [userCurrentEmail, setUserCurrentEmail] = useLocalStorage(
+    "userCurrentEmail",
+    {
+      emailAddress: currentEmailData?.email,
+      name: currentEmailData?.name,
+      id: currentEmailData?.id,
+    },
+  );
+  React.useEffect(() => {
+    if (accounts && accounts.length > 0) {
+      if (accountId) return;
+      setAccountId(accounts[0]!.id);
+      setEmail(accounts[0]?.emailAddress!);
+    } else if (accounts && accounts.length === 0) {
+      toast("Link an account to continue", {
+        action: {
+          label: "Add account",
+          onClick: async () => {
+            try {
+              const url = await getNylasAuthUrl("Google");
+              window.location.href = url;
+            } catch (error) {
+              toast.error((error as Error).message);
+            }
+          },
+        },
+      });
+    }
+  }, [accounts]);
 
-  if (!accounts) return null;
+  React.useEffect(() => {
+    if (currentEmailData) {
+      setUserCurrentEmail({
+        emailAddress: currentEmailData?.email,
+        name: currentEmailData?.name,
+        id: currentEmailData?.id,
+      });
+    }
+  }, [currentEmailData]);
+
+  if (!accounts) return;
+
+  function setAccount(id: string) {
+    setAccountId(id);
+    let acc = accounts?.find((email) => id == email.id);
+    setEmail(acc?.emailAddress!);
+  }
+
   return (
-    <Select defaultValue={accountId} onValueChange={setAccountId}>
+    <Select defaultValue={accountId} onValueChange={setAccount}>
       <SelectTrigger
         className={cn(
           "flex w-full flex-1 items-center gap-2 [&>span]:line-clamp-1 [&>span]:flex [&>span]:w-full [&>span]:items-center [&>span]:gap-1 [&>span]:truncate [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0",
@@ -34,17 +94,20 @@ const AccountSwitcher = ({ isCollapsed }: Props) => {
       >
         <SelectValue placeholder="Select an account">
           <span className={cn({ hidden: !isCollapsed })}>
-            {accounts
+            {accounts!
               .find((account) => account.id === accountId)
               ?.emailAddress[0]?.toUpperCase()}
           </span>
           <span className={cn("ml-2", isCollapsed && "hidden")}>
-            {accounts.find((account) => account.id === accountId)?.emailAddress}
+            {
+              accounts!.find((account) => account.id === accountId)
+                ?.emailAddress
+            }
           </span>
         </SelectValue>
       </SelectTrigger>
       <SelectContent>
-        {accounts.map((account) => (
+        {accounts!.map((account) => (
           <SelectItem key={account.id} value={account.id}>
             <div className="flex items-center gap-3 [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0 [&_svg]:text-foreground">
               {account.emailAddress}

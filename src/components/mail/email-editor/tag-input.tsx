@@ -1,15 +1,41 @@
 import React, { useState } from "react";
 import Avatar from "react-avatar";
 import Select from "react-select";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
 
 type TagInputProps = {
-  suggestions: string[];
-  defaultValues?: { label: string; value: string }[];
+  suggestions:
+    | {
+        name: string;
+        email: string;
+      }[]
+    | [];
+  defaultValues?: {
+    label: string;
+    value: {
+      name: string;
+      email: string;
+    };
+  }[];
   placeholder: string;
   label: string;
 
-  onChange: (values: { label: string; value: string }[]) => void;
-  value: { label: string; value: string }[];
+  onChange: (
+    values: {
+      label: string;
+      value: {
+        name: string;
+        email: string;
+      };
+    }[],
+  ) => void;
+  value: {
+    label: string;
+    value: {
+      name: string;
+      email: string;
+    };
+  }[];
   setExpanded?: () => void;
   expanded?: boolean;
 };
@@ -23,34 +49,44 @@ const TagInput: React.FC<TagInputProps> = ({
   setExpanded,
   expanded,
 }) => {
+  const [ref] = useAutoAnimate();
   const [input, setInput] = useState("");
 
   const options = suggestions.map((suggestion) => ({
     label: (
-      <span className="flex items-center gap-2 dark:text-black">
-        <Avatar name={suggestion} size="25" textSizeRatio={2} round={true} />
-        {suggestion}
+      <span
+        className="flex items-center gap-2 dark:text-black"
+        key={suggestion.email}
+      >
+        <Avatar
+          name={suggestion.name}
+          size="25"
+          textSizeRatio={2}
+          round={true}
+        />
+        {suggestion.name}
       </span>
     ),
-    value: suggestion,
+    value: { ...suggestion },
   }));
 
   return (
-    <div className="flex items-center border-b">
+    <div className="flex items-center border-b" ref={ref}>
       <span className="ml-3 text-sm text-gray-500">{label}</span>
       <Select
         value={value}
         // @ts-ignore
         onChange={onChange}
+        defaultValues={defaultValues}
         className="w-full flex-1"
         isMulti
         onInputChange={setInput}
-        defaultValue={defaultValues}
         placeholder={""}
         // @ts-ignore
         options={
           input
             ? options.concat({
+                // @ts-ignore
                 label: (
                   <span className="flex items-center gap-2">
                     <Avatar
@@ -62,7 +98,10 @@ const TagInput: React.FC<TagInputProps> = ({
                     {input}
                   </span>
                 ),
-                value: input,
+                value: {
+                  name: "",
+                  email: input,
+                },
               })
             : options
         }

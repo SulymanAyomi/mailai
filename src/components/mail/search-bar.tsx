@@ -5,12 +5,15 @@ import { Loader2, Search, X } from "lucide-react";
 import React from "react";
 import useThreads from "./use-threads";
 import { atom, useAtom } from "jotai";
+import { useBreakpoint } from "@/lib/useBreakPoint";
+import { cn } from "@/lib/utils";
 
 export const isSearchingAtom = atom(false);
 export const searchValueAtom = atom("");
 
 const SearchBar = () => {
   const { isFetching } = useThreads();
+  const { isMobile } = useBreakpoint();
   const [searchValue, setSearchValue] = useAtom(searchValueAtom);
   const [isSearching, setIsSearching] = useAtom(isSearchingAtom);
   const ref = React.useRef<HTMLInputElement>(null);
@@ -46,7 +49,7 @@ const SearchBar = () => {
         <Input
           ref={ref}
           placeholder="Search"
-          className="pl-8"
+          className={cn("pl-8", isMobile && "text-[12px]")}
           value={searchValue}
           onChange={(e) => setSearchValue(e.target.value)}
           onFocus={() => setIsSearching(true)}

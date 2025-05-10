@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/tooltip";
 import Link from "next/link";
 import { useLocalStorage } from "usehooks-ts";
+import useThreads from "./use-threads";
+import { useBreakpoint } from "@/lib/useBreakPoint";
 
 interface NavProps {
   isCollapsed: boolean;
@@ -25,6 +27,16 @@ interface NavProps {
 
 export function Nav({ links, isCollapsed }: NavProps) {
   const [_, setTab] = useLocalStorage("email-tab", "inbox");
+  const { setThreadId } = useThreads();
+  const click = (title: string) => {
+    setThreadId("");
+    setTab(title);
+  };
+  const [openMobileMail, setOpenMobileMail] = useLocalStorage<boolean>(
+    "openMobileMail",
+    false,
+  );
+  const { isMobile } = useBreakpoint();
 
   return (
     <div
@@ -37,7 +49,7 @@ export function Nav({ links, isCollapsed }: NavProps) {
             <Tooltip key={index} delayDuration={0}>
               <TooltipTrigger asChild>
                 <span
-                  onClick={() => setTab(link.title.toLowerCase())}
+                  onClick={() => click(link.title.toLowerCase())}
                   className={cn(
                     buttonVariants({ variant: link.variant, size: "icon" }),
                     "h-9 w-9 cursor-pointer",
@@ -61,15 +73,21 @@ export function Nav({ links, isCollapsed }: NavProps) {
           ) : (
             <span
               key={index}
-              onClick={() => setTab(link.title.toLowerCase())}
+              onClick={() => {
+                click(link.title.toLowerCase());
+                isMobile && setOpenMobileMail(false);
+              }}
               className={cn(
                 buttonVariants({ variant: link.variant, size: "sm" }),
                 link.variant === "default" &&
                   "dark:bg-muted dark:text-white dark:hover:bg-muted dark:hover:text-white",
                 "cursor-pointer justify-start",
+                isMobile && "text-[8px]",
               )}
             >
-              <link.icon className="mr-2 h-4 w-4" />
+              <link.icon
+                className={cn("mr-2", isMobile ? "h-1 w-1" : "h-4 w-4")}
+              />
               {link.title}
               {link.label && (
                 <span
