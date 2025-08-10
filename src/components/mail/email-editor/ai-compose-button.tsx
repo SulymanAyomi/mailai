@@ -54,9 +54,7 @@ const AIComposeButton = (props: Props) => {
       console.log(delta);
       if (delta) {
         props.onGenerate(delta);
-        console.log("yes i have");
       }
-      console.log("nooooo i have");
     }
   };
   return (

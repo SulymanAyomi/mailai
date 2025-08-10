@@ -15,14 +15,6 @@ export async function generateEmail(context: string, prompt: string) {
     // console.log("context", context)
     const stream = createStreamableValue('');
 
-    (async () => {
-
-
-        console.log("delta", "hiii")
-
-
-
-    })();
 
     async function streamUpdate() {
         const { textStream } = streamText({
@@ -108,3 +100,55 @@ export async function generate(input: string) {
 
     return { output: stream.value };
 }
+
+export async function changeEmailTone(context: string, tone: string) {
+    // console.log("context", context)
+    const stream = createStreamableValue('');
+
+
+    async function streamUpdate() {
+        const { textStream } = streamText({
+            model: google("gemini-1.5-pro"),
+            prompt: `
+            You are an AI email assistant embedded in an email client app. Your purpose is to help the user compose emails by providing suggestions and relevant information based on the context of their previous emails.
+
+            THE TIME NOW IS ${new Date().toLocaleString()}
+
+            START CONTEXT BLOCK
+            ${context}
+            END OF CONTEXT BLOCK
+
+            USER PROMPT:
+            ${prompt}
+
+            When responding, please keep in mind:
+            - Be helpful, clever, and articulate. 
+            - Rely on the provided email context to inform your response.
+            - If the context does not contain enough information to fully address the prompt, politely give a draft response.
+            - Avoid apologizing for previous responses. Instead, indicate that you have updated your knowledge based on new information.
+            - Do not invent or speculate about anything that is not directly supported by the email context.
+            - Keep your response focused and relevant to the user's prompt.
+            - Don't add fluff like 'Heres your email' or 'Here's your email' or anything like that.
+            - Directly output the email, no need to say 'Here is your email' or anything like that.
+            - No need to output subject
+            `,
+        });
+
+        for await (const delta of textStream) {
+            stream.update(delta);
+        }
+
+        stream.done();
+
+
+    }
+
+
+    streamUpdate()
+
+    // const turndownService = new TurndownService();
+
+
+    return { output: stream.value }
+}
+

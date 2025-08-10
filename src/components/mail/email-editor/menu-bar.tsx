@@ -30,6 +30,11 @@ import {
   PaperclipIcon,
   ChevronDown,
   ChevronRight,
+  ArrowRightFromLineIcon,
+  ArrowRight,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { useLocalStorage } from "usehooks-ts";
@@ -49,6 +54,8 @@ import {
   DropdownMenuPortal,
   DropdownMenuSubTrigger,
 } from "@radix-ui/react-dropdown-menu";
+import { changeEmailTone } from "./action";
+import { readStreamableValue } from "ai/rsc";
 
 const TipTapMenuBar = ({ editor }: { editor: Editor }) => {
   const [editorMenu, setEditorMenu] = useLocalStorage("editorMenu", "");
@@ -63,6 +70,51 @@ const TipTapMenuBar = ({ editor }: { editor: Editor }) => {
     if (!files) return;
     Array.from(files).forEach((file) => addFile(file, accountId));
   }
+
+  const selectAllTextVisually = () => {
+    const editorEl = document.querySelector(".ProseMirror");
+
+    if (!editorEl) return;
+
+    const range = document.createRange();
+    range.selectNodeContents(editorEl);
+
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  };
+
+  const selectAllText = () => {
+    const { state, commands } = editor;
+
+    const from = 0;
+    const to = state.doc.content.size;
+
+    // Apply highlight mark to entire range
+    commands.setTextSelection({ from, to });
+    // commands.setMark("highlight");
+
+    // Extract the highlighted text (plain text)
+    const highlightedText = state.doc.textBetween(from, to, "\n");
+
+    console.log("Highlighted text:", highlightedText);
+
+    // Optional: store in a variable
+    return highlightedText;
+  };
+
+  const changeTone = async (tone: string) => {
+    selectAllTextVisually();
+    const context = selectAllText();
+    console.log(tone, context);
+    const { output } = await changeEmailTone(context, tone);
+    for await (const delta of readStreamableValue(output)) {
+      console.log(delta);
+      if (delta) {
+        editor.commands.insertContent(delta);
+      }
+    }
+  };
 
   const DesktopMenu = () => {
     return (
@@ -201,7 +253,7 @@ const TipTapMenuBar = ({ editor }: { editor: Editor }) => {
           <div className="flex flex-wrap justify-between gap-0">
             <button
               onClick={() => fileRef.current?.click()}
-              className="flex flex-1 flex-row items-center justify-center gap-2 p-4 py-2 hover:rounded-md hover:bg-muted-foreground"
+              className="flex flex-1 flex-row items-center justify-center gap-2 p-4 py-2 hover:rounded-md hover:bg-muted-foreground/50"
             >
               <PaperclipIcon className="size-5 text-secondary-foreground" />
               <span>Files</span>
@@ -215,16 +267,18 @@ const TipTapMenuBar = ({ editor }: { editor: Editor }) => {
               />
             </button>
             <button
-              onClick={() => console.log(editorMenu)}
-              disabled={!editor.can().chain().focus().toggleBold().run()}
-              className="flex flex-1 flex-row items-center justify-center gap-2 p-4 py-2 hover:rounded-md hover:bg-muted-foreground"
+              onClick={() => {
+                editor.chain().focus().insertTable({ rows: 3, cols: 3 }).run();
+                setEditorMenu("table");
+              }}
+              className="flex flex-1 flex-row items-center justify-center gap-2 p-4 py-2 hover:rounded-md hover:bg-muted-foreground/50"
             >
               <Table className="size-5 text-secondary-foreground" />
               <span>Table</span>
             </button>
             <button
               onClick={() => imgRef.current?.click()}
-              className="flex flex-1 flex-row items-center justify-center gap-2 p-4 py-2 hover:rounded-md hover:bg-muted-foreground"
+              className="flex flex-1 flex-row items-center justify-center gap-2 p-4 py-2 hover:rounded-md hover:bg-muted-foreground/50"
             >
               <Image className="size-5 text-secondary-foreground" />
               <span>Pictures</span>
@@ -240,7 +294,7 @@ const TipTapMenuBar = ({ editor }: { editor: Editor }) => {
             <button
               onClick={() => console.log(editorMenu)}
               disabled={!editor.can().chain().focus().toggleBold().run()}
-              className="flex flex-1 flex-row items-center justify-center gap-2 p-4 py-2 hover:rounded-md hover:bg-muted-foreground"
+              className="flex flex-1 flex-row items-center justify-center gap-2 p-4 py-2 hover:rounded-md hover:bg-muted-foreground/50"
             >
               <Link className="size-5 text-secondary-foreground" />
               <span>Links</span>
@@ -248,7 +302,7 @@ const TipTapMenuBar = ({ editor }: { editor: Editor }) => {
             <button
               onClick={() => console.log(editorMenu)}
               disabled={!editor.can().chain().focus().toggleBold().run()}
-              className="flex flex-1 flex-row items-center justify-center gap-2 p-4 py-2 hover:rounded-md hover:bg-muted-foreground"
+              className="flex flex-1 flex-row items-center justify-center gap-2 p-4 py-2 hover:rounded-md hover:bg-muted-foreground/50"
             >
               <Laugh className="size-5 text-secondary-foreground" />
               <span>Emoji</span>
@@ -257,19 +311,19 @@ const TipTapMenuBar = ({ editor }: { editor: Editor }) => {
         )}
         {editorMenu == "options" && (
           <div className="flex flex-wrap justify-between gap-0">
-            <button className="flex items-center justify-center gap-2 p-4 py-2 hover:rounded-md hover:bg-muted-foreground">
+            <button className="flex items-center justify-center gap-2 p-4 py-2 hover:rounded-md hover:bg-muted-foreground/50">
               <span>Compose</span>
             </button>
-            <button className="flex items-center justify-center gap-2 p-4 py-2 hover:rounded-md hover:bg-muted-foreground">
+            <button className="flex items-center justify-center gap-2 p-4 py-2 hover:rounded-md hover:bg-muted-foreground/50">
               <span>Summarise</span>
             </button>
-            <button className="flex flex-1 flex-row items-center justify-center gap-2 p-4 py-2 hover:rounded-md hover:bg-muted-foreground">
+            <button className="flex flex-1 flex-row items-center justify-center gap-2 p-4 py-2 hover:rounded-md hover:bg-muted-foreground/50">
               <span>Rewrite</span>
             </button>
             <div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center justify-center gap-2 p-4 py-2 hover:rounded-md hover:bg-muted-foreground">
+                  <button className="flex items-center justify-center gap-2 p-4 py-2 hover:rounded-md hover:bg-muted-foreground/50">
                     <span>Change</span>
                     <ChevronDown className="ml-auto size-5 text-secondary-foreground" />
                   </button>
@@ -295,17 +349,23 @@ const TipTapMenuBar = ({ editor }: { editor: Editor }) => {
                       </DropdownMenuSubTrigger>
                       <DropdownMenuPortal>
                         <DropdownMenuSubContent>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => changeTone("formal")}
+                          >
                             <div className="cursor-default px-1 py-2 hover:bg-secondary">
                               Formal
                             </div>
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => changeTone("casual")}
+                          >
                             <div className="cursor-default px-1 py-2 hover:bg-secondary">
                               Casual
                             </div>
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => changeTone("humour")}
+                          >
                             <div className="cursor-default px-1 py-2 hover:bg-secondary">
                               Humour
                             </div>
@@ -322,24 +382,26 @@ const TipTapMenuBar = ({ editor }: { editor: Editor }) => {
         {editorMenu == "table" && (
           <div className="flex flex-wrap justify-between gap-0">
             <button
-              onClick={() => editor.chain().focus().deleteTable().run()}
-              className="flex flex-1 flex-row items-center justify-center gap-2 p-4 py-2 hover:rounded-md hover:bg-muted-foreground"
-            >
-              <Table className="size-5 text-secondary-foreground" />
-              <span>Delete</span>
-            </button>
-            <button
               onClick={() =>
                 editor.chain().focus().insertTable({ rows: 3, cols: 3 }).run()
               }
-              className="flex flex-1 flex-row items-center justify-center gap-2 p-4 py-2 hover:rounded-md hover:bg-muted-foreground"
+              className="flex flex-1 flex-row items-center justify-center gap-2 p-4 py-2 hover:rounded-md hover:bg-muted-foreground/50"
             >
               <Table className="size-5 text-secondary-foreground" />
               <span>Table</span>
             </button>
+
+            <button
+              onClick={() => editor.chain().focus().deleteTable().run()}
+              className="flex flex-1 flex-row items-center justify-center gap-2 p-4 py-2 hover:rounded-md hover:bg-muted-foreground/50"
+            >
+              <Table className="size-5 text-secondary-foreground" />
+              <span>Delete</span>
+            </button>
+
             <div
               onClick={() => setShowTableMenu(!showTableMenu)}
-              className="relative flex flex-1 cursor-default flex-row items-center justify-center gap-2 p-4 py-2 hover:rounded-md hover:bg-muted-foreground"
+              className="relative flex flex-1 cursor-default flex-row items-center justify-center gap-2 p-4 py-2 hover:rounded-md hover:bg-muted-foreground/50"
             >
               <Rows3 className="size-5 text-secondary-foreground" />
               <span>Insert</span>
@@ -356,7 +418,7 @@ const TipTapMenuBar = ({ editor }: { editor: Editor }) => {
                   <Button
                     onClick={() => editor.chain().focus().addRowBefore().run()}
                     variant="ghost"
-                    className="flex flex-row items-center justify-center hover:rounded-md hover:bg-muted-foreground"
+                    className="flex flex-row items-center justify-center hover:rounded-md hover:bg-muted-foreground/50"
                   >
                     <Table className="size-5 text-secondary-foreground" />
                     <span>Insert Above</span>
@@ -364,7 +426,7 @@ const TipTapMenuBar = ({ editor }: { editor: Editor }) => {
                   <Button
                     onClick={() => editor.chain().focus().addRowAfter().run()}
                     variant="ghost"
-                    className="flex flex-row items-center justify-center hover:rounded-md hover:bg-muted-foreground"
+                    className="flex flex-row items-center justify-center hover:rounded-md hover:bg-muted-foreground/50"
                   >
                     <Table className="size-5 text-secondary-foreground" />
                     <span>Insert Below</span>
@@ -374,7 +436,7 @@ const TipTapMenuBar = ({ editor }: { editor: Editor }) => {
                       editor.chain().focus().addColumnBefore().run()
                     }
                     variant="ghost"
-                    className="flex flex-row items-center justify-center hover:rounded-md hover:bg-muted-foreground"
+                    className="flex flex-row items-center justify-center hover:rounded-md hover:bg-muted-foreground/50"
                   >
                     <Table className="size-5 text-secondary-foreground" />
                     <span>Insert Left</span>
@@ -384,7 +446,7 @@ const TipTapMenuBar = ({ editor }: { editor: Editor }) => {
                       editor.chain().focus().addColumnAfter().run()
                     }
                     variant="ghost"
-                    className="flex flex-row items-center justify-center hover:rounded-md hover:bg-muted-foreground"
+                    className="flex flex-row items-center justify-center hover:rounded-md hover:bg-muted-foreground/50"
                   >
                     <Table className="size-5 text-secondary-foreground" />
                     <span>Insert Right</span>
@@ -392,6 +454,60 @@ const TipTapMenuBar = ({ editor }: { editor: Editor }) => {
                 </div>
               </div>
             </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center justify-center gap-2 p-4 py-2 hover:rounded-md hover:bg-muted-foreground/50">
+                  <span>Insert</span>
+                  <ChevronDown className="ml-auto size-5 text-secondary-foreground" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40 p-1">
+                <DropdownMenuGroup>
+                  <DropdownMenuItem>
+                    <div className="cursor-default px-1 py-2 hover:bg-secondary">
+                      Insert
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => editor.chain().focus().addRowBefore().run()}
+                  >
+                    <div className="flex cursor-default items-center px-1 py-2 hover:bg-secondary">
+                      Insert above
+                      <ArrowUp className="ml-auto mr-1 size-4" />
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => editor.chain().focus().addRowAfter().run()}
+                  >
+                    <div className="flex cursor-default items-center px-1 py-2 hover:bg-secondary">
+                      Insert below
+                      <ArrowDown className="ml-auto mr-1 size-4" />
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() =>
+                      editor.chain().focus().addColumnBefore().run()
+                    }
+                  >
+                    <div className="flex cursor-default items-center px-1 py-2 hover:bg-secondary">
+                      Insert left
+                      <ArrowLeft className="ml-auto mr-1 size-4" />
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() =>
+                      editor.chain().focus().addColumnAfter().run()
+                    }
+                  >
+                    <div className="flex cursor-default items-center px-1 py-2 hover:bg-secondary">
+                      Insert right
+                      <ArrowRight className="ml-auto mr-1 size-4" />
+                    </div>
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         )}
       </>
